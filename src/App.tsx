@@ -34,7 +34,6 @@ import { PRCard } from "./components/PRCard";
 import { CommentTimeline } from "./components/CommentTimeline";
 import { Welcome, hasSeenWelcome } from "./components/Welcome";
 import { SettingsModal } from "./components/SettingsModal";
-import { PriorityManager } from "./components/PriorityManager";
 import { useSettings } from "./lib/settings";
 
 type View = "flat" | "feature" | "repo";
@@ -56,19 +55,13 @@ export default function App() {
   const [knownGroups, setKnownGroups] = useState<string[]>(() => loadKnownGroups());
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(() => !hasSeenWelcome());
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [priorityOpen, setPriorityOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState<false | "general" | "priority" | "connection" | "repos">(false);
   const [settings] = useSettings();
 
   useEffect(() => {
-    const onOpen = () => setSettingsOpen(true);
-    const onPriority = () => setPriorityOpen(true);
+    const onOpen = () => setSettingsOpen("general");
     window.addEventListener("gh-open-settings", onOpen);
-    window.addEventListener("gh-open-priority", onPriority);
-    return () => {
-      window.removeEventListener("gh-open-settings", onOpen);
-      window.removeEventListener("gh-open-priority", onPriority);
-    };
+    return () => window.removeEventListener("gh-open-settings", onOpen);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -187,12 +180,11 @@ export default function App() {
   return (
     <div className="min-h-screen">
       {welcomeOpen && <Welcome onClose={() => setWelcomeOpen(false)} />}
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
-      {priorityOpen && (
-        <PriorityManager
-          groups={Array.from(new Set([...knownGroups]))}
-          onClose={() => setPriorityOpen(false)}
-          onApplied={() => setKnownGroups([...knownGroups])}
+      {settingsOpen && (
+        <SettingsModal
+          initialTab={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onPrioritySaved={() => setKnownGroups([...knownGroups])}
         />
       )}
       <Header
@@ -207,7 +199,6 @@ export default function App() {
         rate={rate}
         theme={theme}
         setTheme={setTheme}
-        groupCount={knownGroups.length}
       />
 
       <main className="max-w-7xl mx-auto px-6 py-6">

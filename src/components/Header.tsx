@@ -23,7 +23,6 @@ export function Header({
   rate,
   theme,
   setTheme,
-  groupCount = 0,
 }: {
   me: { login: string; avatar_url: string; name: string } | null;
   stats: Stats;
@@ -36,7 +35,6 @@ export function Header({
   rate?: { remaining: number; limit: number; reset: number };
   theme: Theme;
   setTheme: (t: Theme) => void;
-  groupCount?: number;
 }) {
   return (
     <header className="sticky top-0 z-20 backdrop-blur-xl bg-bg/75 border-b border-border">
@@ -62,16 +60,6 @@ export function Header({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-
-          {view === "feature" && groupCount >= 2 && (
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("gh-open-priority"))}
-              title="Manage group priority"
-              className="text-sm bg-surface2 hover:bg-surface border border-border px-3 h-9 rounded-lg shrink-0 flex items-center gap-1.5"
-            >
-              ↕ <span className="hidden lg:inline text-xs">Priority</span>
-            </button>
-          )}
 
           <div className="flex items-center bg-surface2 border border-border rounded-lg p-0.5 text-sm shrink-0">
             {(["flat", "feature", "repo"] as const).map((v) => (
