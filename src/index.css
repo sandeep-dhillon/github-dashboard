@@ -1,0 +1,113 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark theme (default) */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg: 11 13 18;
+  --c-surface: 17 20 27;
+  --c-surface-2: 22 26 35;
+  --c-border: 34 40 54;
+  --c-muted: 138 147 166;
+  --c-text: 230 233 240;
+  --c-accent: 124 92 255;
+  --c-accent-2: 34 211 238;
+  --c-success: 34 197 94;
+  --c-danger: 239 68 68;
+  --c-warn: 245 158 11;
+  --c-info: 56 189 248;
+  --bg-base: #07080c;
+  --bg-grain-color: 255 255 255;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --c-bg: 248 250 252;
+  --c-surface: 255 255 255;
+  --c-surface-2: 241 245 249;
+  --c-border: 226 232 240;
+  --c-muted: 100 116 139;
+  --c-text: 15 23 42;
+  --c-accent: 99 102 241;
+  --c-accent-2: 14 165 233;
+  --c-success: 22 163 74;
+  --c-danger: 220 38 38;
+  --c-warn: 217 119 6;
+  --c-info: 14 165 233;
+  --bg-base: #f8fafc;
+  --bg-grain-color: 15 23 42;
+}
+
+html, body, #root {
+  height: 100%;
+  color: rgb(var(--c-text));
+  font-family: Inter, ui-sans-serif, system-ui;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-base);
+  transition: background 0.3s ease;
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Mesh-gradient backdrop */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  background:
+    radial-gradient(60rem 40rem at 8% -5%, rgb(var(--c-accent) / 0.28), transparent 60%),
+    radial-gradient(50rem 35rem at 100% 8%, rgb(var(--c-accent-2) / 0.22), transparent 55%),
+    radial-gradient(55rem 40rem at 50% 110%, rgb(236 72 153 / 0.18), transparent 55%),
+    radial-gradient(40rem 30rem at 110% 90%, rgb(var(--c-success) / 0.12), transparent 55%),
+    var(--bg-base);
+  filter: saturate(1.05);
+  opacity: 1;
+}
+
+:root[data-theme="light"] body::before {
+  background:
+    radial-gradient(60rem 40rem at 8% -5%, rgb(var(--c-accent) / 0.18), transparent 60%),
+    radial-gradient(50rem 35rem at 100% 8%, rgb(var(--c-accent-2) / 0.14), transparent 55%),
+    radial-gradient(55rem 40rem at 50% 110%, rgb(236 72 153 / 0.10), transparent 55%),
+    var(--bg-base);
+}
+
+/* Subtle grid */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(var(--bg-grain-color) / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--bg-grain-color) / 0.025) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px;
+  mask-image: radial-gradient(80rem 60rem at 50% 0%, black, transparent 70%);
+  -webkit-mask-image: radial-gradient(80rem 60rem at 50% 0%, black, transparent 70%);
+  opacity: 0.6;
+}
+
+* { box-sizing: border-box; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--c-border)); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--c-surface-2)) 0%,
+    rgb(var(--c-border)) 40%,
+    rgb(var(--c-surface-2)) 80%
+  );
+  background-size: 800px 100%;
+}
