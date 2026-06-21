@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { EnrichedPR } from "../types";
 import { PRCard } from "./PRCard";
-import { postPRComment, rebasePRBranch, redactSecrets, dispatchWorkflow } from "../api/github";
+import { postPRComment, rebasePRBranch, redactSecrets, dispatchWorkflow, getBehindBy } from "../api/github";
 import { getRepoConfig } from "../lib/repoConfig";
+import { useDialog } from "./Dialog";
 
 type DeployState = "idle" | "posting" | "ok" | "err";
 interface PerPR {
@@ -37,6 +38,7 @@ export function GroupSection({
   const [draft, setDraft] = useState(title);
   const [groupDeploy, setGroupDeploy] = useState<Record<string, PerPR>>({});
   const [groupDeploying, setGroupDeploying] = useState(false);
+  const dialog = useDialog();
 
   const failing = prs.filter((p) => p.checks?.state === "failure").length;
   const approved = prs.filter((p) => (p.reviews?.approved ?? 0) > 0).length;
@@ -60,9 +62,11 @@ export function GroupSection({
     const skipNote = skippedPrs.length
       ? `\n\nSkipping ${skippedPrs.length} (manual deploy):\n${skippedPrs.map((p) => `• ${p.repo}#${p.item.number}`).join("\n")}`
       : "";
-    const confirmed = confirm(
-      `Post "${cmd}" as a comment on ${deployablePrs.length} PR${deployablePrs.length === 1 ? "" : "s"} in "${title}"?\n\n${deployablePrs.map((p) => `• ${p.repo}#${p.item.number}`).join("\n")}${skipNote}`,
-    );
+    const confirmed = await dialog.confirm({
+      title: `Deploy group "${title}"`,
+      message: `Post "${cmd}" as a comment on ${deployablePrs.length} PR${deployablePrs.length === 1 ? "" : "s"}:\n\n${deployablePrs.map((p) => `• ${p.repo}#${p.item.number}`).join("\n")}${skipNote}`,
+      okText: `Deploy ${deployablePrs.length}`,
+    });
     if (!confirmed) return;
     setGroupDeploying(true);
     const init: Record<string, PerPR> = {};
@@ -88,7 +92,11 @@ export function GroupSection({
                 setGroupDeploy({ ...results });
                 continue;
               }
-              if (ms === "behind") {
+              const behindBy =
+                ms === "behind"
+                  ? 1
+                  : await getBehindBy(pr.owner, pr.name, pr.details.base.ref, pr.details.head.sha);
+              if (behindBy > 0) {
                 const out = await rebasePRBranch(pr.owner, pr.name, pr.item.number, pr.details.head.sha);
                 if (out.kind === "conflict") {
                   results[k] = { state: "err", message: "rebase produced conflicts — resolve locally" };
@@ -125,9 +133,11 @@ export function GroupSection({
       }),
     );
     if (conflicts.length) {
-      alert(
-        `${conflicts.length} PR${conflicts.length === 1 ? "" : "s"} in "${title}" need conflict resolution:\n\n${conflicts.join("\n")}\n\nResolve locally, push, and re-run the group deploy.`,
-      );
+      await dialog.alert({
+        title: "Conflict resolution required",
+        tone: "danger",
+        message: `${conflicts.length} PR${conflicts.length === 1 ? "" : "s"} in "${title}" need conflict resolution:\n\n${conflicts.join("\n")}\n\nResolve locally, push, and re-run the group deploy.`,
+      });
     }
     setGroupDeploying(false);
     setTimeout(onAfterDeploy, 5000);

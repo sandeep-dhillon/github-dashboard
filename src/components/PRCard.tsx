@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { EnrichedPR } from "../types";
 import { relativeTime } from "../lib/feature";
-import { dispatchWorkflow, postPRComment, rebasePRBranch, redactSecrets } from "../api/github";
+import { dispatchWorkflow, postPRComment, rebasePRBranch, redactSecrets, getBehindBy } from "../api/github";
+import { useDialog } from "./Dialog";
 import { getRepoConfig } from "../lib/repoConfig";
 
 const DEPLOY_COMMAND_KEY = "gh_deploy_command";
@@ -203,6 +204,7 @@ export function PRCard({
   const [msg, setMsg] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [deployMenu, setDeployMenu] = useState(false);
+  const dialog = useDialog();
 
   const branch = pr.details?.head.ref ?? "";
   const stateLabel: "open" | "closed" | "draft" = pr.item.draft ? "draft" : pr.item.state;
@@ -219,21 +221,26 @@ export function PRCard({
     if (!pr.details) return true;
     const ms = pr.details.mergeable_state;
     if (ms === "dirty" || pr.details.mergeable === false) {
-      alert(
-        `Cannot deploy ${pr.repo}#${pr.item.number}: branch has merge conflicts with ${pr.details.base.ref}.\n\nResolve locally:\n  git fetch origin\n  git checkout ${pr.details.head.ref}\n  git rebase origin/${pr.details.base.ref}\n  # resolve conflicts, then\n  git push --force-with-lease`,
-      );
+      await dialog.alert({
+        title: "Merge conflict",
+        tone: "danger",
+        message: `Cannot deploy ${pr.repo}#${pr.item.number}: branch has merge conflicts with ${pr.details.base.ref}.\n\nResolve locally:\n  git fetch origin\n  git checkout ${pr.details.head.ref}\n  git rebase origin/${pr.details.base.ref}\n  # resolve conflicts, then\n  git push --force-with-lease`,
+      });
       return false;
     }
-    if (ms !== "behind") return true;
-    if (!confirm(`Branch is behind ${pr.details.base.ref}. Rebase via GitHub before deploying?`)) {
-      return true; // user said no — proceed anyway
-    }
+    const behindBy =
+      ms === "behind"
+        ? 1
+        : await getBehindBy(pr.owner, pr.name, pr.details.base.ref, pr.details.head.sha);
+    if (behindBy <= 0) return true;
     setMsg("Rebasing on " + pr.details.base.ref + "…");
     const out = await rebasePRBranch(pr.owner, pr.name, pr.item.number, pr.details.head.sha);
     if (out.kind === "conflict") {
-      alert(
-        `Rebase produced conflicts on ${pr.repo}#${pr.item.number}.\n\nResolve locally:\n  git fetch origin\n  git checkout ${pr.details.head.ref}\n  git rebase origin/${pr.details.base.ref}\n  # resolve, then\n  git push --force-with-lease`,
-      );
+      await dialog.alert({
+        title: "Rebase conflict",
+        tone: "danger",
+        message: `Rebase produced conflicts on ${pr.repo}#${pr.item.number}.\n\nResolve locally:\n  git fetch origin\n  git checkout ${pr.details.head.ref}\n  git rebase origin/${pr.details.base.ref}\n  # resolve, then\n  git push --force-with-lease`,
+      });
       setMsg(`✕ rebase conflicts — resolve locally`);
       return false;
     }
@@ -249,7 +256,12 @@ export function PRCard({
   const deployViaComment = async () => {
     setDeployMenu(false);
     if (!pr.details) return;
-    const cmd = prompt("PR comment to post (triggers deploy bot):", deployCmd);
+    const cmd = await dialog.prompt({
+      title: "Deploy via PR comment",
+      message: "Comment to post (triggers deploy bot):",
+      defaultValue: deployCmd,
+      okText: "Post comment",
+    });
     if (!cmd) return;
     localStorage.setItem(DEPLOY_COMMAND_KEY, cmd);
     setDeploying(true);
@@ -296,7 +308,14 @@ export function PRCard({
     const summary = `Dispatch ${wf.path} on ref=${ref}${
       inputs ? `\nInputs:\n${Object.entries(inputs).map(([k, v]) => `  ${k}: ${v}`).join("\n")}` : ""
     }\n\nProceed?`;
-    if (!skipConfirm && !confirm(summary)) return;
+    if (!skipConfirm) {
+      const ok = await dialog.confirm({
+        title: "Dispatch deploy workflow",
+        message: summary,
+        okText: "Dispatch",
+      });
+      if (!ok) return;
+    }
     setDeploying(true);
     setMsg(null);
     try {
@@ -321,8 +340,13 @@ export function PRCard({
     onMove(prKeyStr, g);
   };
 
-  const handleMoveNew = () => {
-    const v = prompt("New group name:");
+  const handleMoveNew = async () => {
+    const v = await dialog.prompt({
+      title: "Move to new group",
+      message: "Group name:",
+      placeholder: "e.g. release-jan-30",
+      okText: "Move",
+    });
     if (v && v.trim()) moveTo(v.trim());
   };
 

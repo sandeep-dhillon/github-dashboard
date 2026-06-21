@@ -480,6 +480,25 @@ export async function rebasePRBranch(
   return { kind: "queued", message: "rebase queued; check the PR on GitHub" };
 }
 
+// Returns how many commits `head` is behind `base`. Used to decide whether
+// to rebase before deploy — `mergeable_state === "behind"` only fires when
+// branch protection requires up-to-date branches, so it can't be trusted.
+export async function getBehindBy(
+  owner: string,
+  repo: string,
+  base: string,
+  head: string,
+): Promise<number> {
+  try {
+    const res = await gh<{ behind_by: number }>(
+      `/repos/${owner}/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+    );
+    return res.behind_by ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function postPRComment(
   owner: string,
   repo: string,

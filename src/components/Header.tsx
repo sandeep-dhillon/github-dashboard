@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { clearToken, setToken } from "../api/github";
 import type { Theme } from "../lib/theme";
+import { useDialog } from "./Dialog";
 
 export interface Stats {
   total: number;
@@ -190,9 +191,16 @@ function ProfileMenu({ me }: { me: { login: string; avatar_url: string; name: st
     location.reload();
   };
 
-  const signOut = () => {
+  const dialog = useDialog();
+  const signOut = async () => {
     setOpen(false);
-    if (confirm("Sign out and forget the current token?")) {
+    const ok = await dialog.confirm({
+      title: "Sign out",
+      tone: "danger",
+      message: "Sign out and forget the current token?",
+      okText: "Sign out",
+    });
+    if (ok) {
       clearToken();
       location.reload();
     }
